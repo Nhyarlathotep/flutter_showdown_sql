@@ -30,9 +30,9 @@ class _StatBox extends StatelessWidget {
 }
 
 class StatsBox extends StatelessWidget {
-  const StatsBox(this.pokemon);
+  const StatsBox(this.stats);
 
-  final Pokemon pokemon;
+  final Stat stats;
 
   @override
   Widget build(BuildContext context) {
@@ -43,21 +43,21 @@ class StatsBox extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _StatBox('HP', pokemon.hp!),
-                  _StatBox('Atk', pokemon.atk!),
-                  _StatBox('Def', pokemon.def!),
+                  _StatBox('HP', stats.hp),
+                  _StatBox('Atk', stats.atk),
+                  _StatBox('Def', stats.def),
                 ],
               ),
               Row(
                 children: [
-                  _StatBox('SpA', pokemon.spa!),
-                  _StatBox('SpD', pokemon.spd!),
-                  _StatBox('Spe', pokemon.spe!),
+                  _StatBox('SpA', stats.spa),
+                  _StatBox('SpD', stats.spd),
+                  _StatBox('Spe', stats.spe),
                 ],
               ),
             ],
           ),
-          _StatBox('BST', pokemon.bst!, labelColor: const Color(0xff666666)),
+          _StatBox('BST', stats.bst, labelColor: const Color(0xff666666)),
         ],
       ),
     );

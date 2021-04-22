@@ -59,6 +59,8 @@ flutter:
   assets:
     - assets/pokedex.json
     - assets/abilities.json
+    - assets/learnset.json
+    - assets/moves.json
     - assets/pokemon-icons/
     - assets/types/
 

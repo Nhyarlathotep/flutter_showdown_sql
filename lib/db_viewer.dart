@@ -14,31 +14,19 @@ class Tuple<T, E> {
   String toString() => '($first, $second)';
 }
 
-class DbColumn {
-  String name;
-  bool sort;
-  bool filter;
-  Widget Function(Map<String, dynamic> data)? cell;
-
-  DbColumn({
-    required this.name,
-    this.sort = true,
-    this.filter = false,
-    this.cell,
-  });
-}
-
 class DbViewer extends StatefulWidget {
+  final moor.GeneratedDatabase db;
   final String query;
-  final List<DbColumn> columns;
-  final moor.GeneratedDatabase database;
-  final Widget Function(int index, Row content) rows;
+  final List<String> sortColumns;
+  final List<String> filterColumns;
+  final Widget Function(BuildContext context, int index, Map<String, dynamic> data) rowRenderer;
 
   DbViewer({
-    required this.database,
+    required this.db,
     required this.query,
-    required this.columns,
-    required this.rows,
+    this.sortColumns = const [],
+    this.filterColumns = const [],
+    required this.rowRenderer,
   });
 
   @override
@@ -54,8 +42,9 @@ class _DbViewerState extends State<DbViewer> {
   @override
   void initState() {
     super.initState();
-    queryResult = widget.database.customSelect(widget.query).get();
-    filters = Map.fromIterable(widget.columns.where((e) => e.filter), key: (e) => e.name, value: (e) => []);
+
+    queryResult = widget.db.customSelect(widget.query).get();
+    filters = Map.fromIterable(widget.filterColumns, key: (e) => e, value: (e) => []);
   }
 
   void _updateQuery() {
@@ -78,9 +67,8 @@ class _DbViewerState extends State<DbViewer> {
         }
       }
       filterQuery = 'WHERE ($filterQuery)';
-      debugPrint(filterQuery);
     }
-    queryResult = widget.database.customSelect('${widget.query} $filterQuery $sortQuery').get();
+    queryResult = widget.db.customSelect('${widget.query} $filterQuery $sortQuery').get();
   }
 
   void _updateSortRule(String columnName) {
@@ -95,38 +83,120 @@ class _DbViewerState extends State<DbViewer> {
     }
   }
 
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder(
       future: queryResult,
-      builder: (context, AsyncSnapshot<List<moor.QueryRow>> snapshot) {
+      builder: (BuildContext context, AsyncSnapshot<List<moor.QueryRow>> snapshot) {
         if (snapshot.hasData) {
-          return NestedScrollView(
+          return SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                if (index == 0) {
+                  return Card(
+                    child: Wrap(
+                      spacing: 4,
+                      alignment: WrapAlignment.spaceEvenly,
+                      children: [
+                        ...widget.sortColumns.map(
+                              (c) => _HeadingCell(
+                            label: c,
+                            onTap: () {
+                              setState(() {
+                                filterRule = '';
+                                _updateSortRule(c);
+                                _updateQuery();
+                              });
+                            },
+                            visible: sortRule.first == c,
+                            sorted: sortRule.second,
+                          ),
+                        ),
+                        ...widget.filterColumns.map(
+                              (c) => _HeadingCell(
+                            label: c,
+                            onTap: () {
+                              setState(() {
+                                filterRule = filterRule == c ? '' : c;
+                              });
+                            },
+                            visible: false,
+                            sorted: null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return widget.rowRenderer(context, index - 1, snapshot.data![index - 1].data);
+              },
+              childCount: snapshot.data!.length + 1,
+            ),
+          );
+        }
+        return SliverFillRemaining(
+          child: Center(child: CircularProgressIndicator()),
+        );
+      },
+    );
+
+    /*return NestedScrollView(
+            physics: NeverScrollableScrollPhysics(),
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               return [
+                if (filters.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Wrap(
+                        children: [
+                          for (final entry in filters.entries)
+                            ...entry.value.map(
+                                  (f) => InputChip(
+                                label: Text(f),
+                                padding: EdgeInsets.all(2.0),
+                                onDeleted: () {
+                                  setState(() {
+                                    filters[entry.key]!.remove(f);
+                                    _updateQuery();
+                                  });
+                                },
+                                backgroundColor: Colors.lightBlue[100],
+                              ),
+                            ),
+                        ]
+                    ),
+                  ),
                 SliverToBoxAdapter(
                   child: Card(
                     child: Wrap(
                       spacing: 4,
                       alignment: WrapAlignment.spaceEvenly,
                       children: [
-                        ...widget.columns.where((e) => e.sort || e.filter).map(
-                              (c) => _HeadingCell(
-                                label: c.name,
-                                onTap: () {
-                                  setState(() {
-                                    if (c.filter) {
-                                      filterRule = filterRule == c.name ? '' : c.name;
-                                    } else {
-                                      filterRule = '';
-                                      _updateSortRule(c.name);
-                                      _updateQuery();
-                                    }
-                                  });
-                                },
-                                visible: sortRule.first == c.name,
-                                sorted: c.filter ? null : sortRule.second,
-                              ),
-                            ),
+                        ...widget.sortColumns.map(
+                          (c) => _HeadingCell(
+                            label: c,
+                            onTap: () {
+                              setState(() {
+                                filterRule = '';
+                                _updateSortRule(c);
+                                _updateQuery();
+                              });
+                            },
+                            visible: sortRule.first == c,
+                            sorted: sortRule.second,
+                          ),
+                        ),
+                        ...widget.filterColumns.map(
+                          (c) => _HeadingCell(
+                            label: c,
+                            onTap: () {
+                              setState(() {
+                                filterRule = filterRule == c ? '' : c;
+                              });
+                            },
+                            visible: false,
+                            sorted: null,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -143,50 +213,19 @@ class _DbViewerState extends State<DbViewer> {
                       },
                     ),
                   ),
-                if (filters.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: Wrap(
-                      children: [
-                        for (final entry in filters.entries)
-                        ...entry.value.map(
-                          (f) => InputChip(
-                            label: Text(f),
-                            padding: EdgeInsets.all(2.0),
-                            onDeleted: () {
-                              setState(() {
-                                filters[entry.key]!.remove(f);
-                                _updateQuery();
-                              });
-                            },
-                            backgroundColor: Colors.lightBlue[100],
-                          ),
-                        ),
-                      ]
-                    ),
-                  ),
               ];
             },
             body: ListView.builder(
               shrinkWrap: true,
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                return widget.rows(
-                  index,
-                  Row(
-                    children: [
-                      ...widget.columns.where((e) => e.cell != null).map(
-                            (c) => c.cell!(snapshot.data![index].data),
-                          ),
-                    ],
-                  ),
-                );
+                return widget.rowRenderer(context, index, snapshot.data![index].data);
               },
             ),
           );
-        }
         return Center(child: CircularProgressIndicator());
       },
-    );
+    );*/
   }
 }
 

@@ -1,154 +1,128 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:json_annotation/json_annotation.dart' as j;
+
+import 'package:flutter/services.dart';
 import 'package:moor/ffi.dart';
 import 'package:moor/moor.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'tables/abilities.dart';
+import 'tables/learnsets.dart';
+import 'tables/moves.dart';
+import 'tables/pokemons.dart';
+import 'tables/stats.dart';
+
 part 'db.g.dart';
 
-class ListConverter<T> extends TypeConverter<List<T>, String> {
-  @override
-  List<T>? mapToDart(String? fromDb) {
-    if (fromDb == null) {
-      return null;
-    }
-    final json = jsonDecode(fromDb) as List<dynamic>;
-    return json.map((e) => e as T).toList();
-  }
+LazyDatabase _openConnection() {
+  return LazyDatabase(() async {
+    final dbFolder = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dbFolder.path, 'db.sqlite'));
 
-  @override
-  String? mapToSql(List<T>? value) {
-    if (value == null) {
-      return null;
-    }
-    return jsonEncode(value);
-  }
+    return VmDatabase(file, logStatements: true);
+  });
 }
 
-@j.JsonSerializable()
-class PokemonAbilities {
-  @j.JsonKey(name: '0')
-  String first;
-  @j.JsonKey(name: '1', includeIfNull: false)
-  String? second;
-  @j.JsonKey(name: 'H', includeIfNull: false)
-  String? hidden;
-  @j.JsonKey(name: 'S', includeIfNull: false)
-  String? special;
-
-  PokemonAbilities(this.first, this.second, this.hidden, this.special);
-
-  List<String> toList() {
-    return [
-      first,
-      if (second != null) second!,
-      if (hidden != null) hidden!,
-      if (special != null) special!,
-    ];
-  }
-
-  factory PokemonAbilities.fromJson(Map<String, dynamic> json) => _$PokemonAbilitiesFromJson(json);
-
-  Map<String, dynamic> toJson() => _$PokemonAbilitiesToJson(this);
-}
-
-class PokemonAbilitiesConverter extends TypeConverter<PokemonAbilities, String> {
-  const PokemonAbilitiesConverter();
+@UseMoor(tables: [Pokemons, Stats, Abilities, LearnSets, Moves])
+class MyDatabase extends _$MyDatabase {
+  MyDatabase() : super(_openConnection());
 
   @override
-  PokemonAbilities? mapToDart(String? fromDb) {
-    if (fromDb == null) {
-      return null;
-    }
-    return PokemonAbilities.fromJson(json.decode(fromDb));
+  int get schemaVersion => 1;
+
+  static String toId(String s) {
+    return s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
   }
 
-  @override
-  String? mapToSql(PokemonAbilities? value) {
-    if (value == null) {
-      return null;
-    }
-    return json.encode(value.toJson());
+  void fillDataBaseFromJson(MyDatabase db) async {
+    final dexJson = await rootBundle.loadString('assets/pokedex.json');
+    final abilitiesJson = await rootBundle.loadString('assets/abilities.json');
+    final learnSetJson = await rootBundle.loadString('assets/learnset.json');
+    final movesJson = await rootBundle.loadString('assets/moves.json');
+
+    await db.delete(db.pokemons).go();
+    await db.delete(db.abilities).go();
+    await db.delete(db.stats).go();
+    await db.delete(db.learnSets).go();
+    await db.delete(db.moves).go();
+
+    await db.batch((batch) => batch.insertAll(db.pokemons, _pokemonsFromJson(jsonDecode(dexJson))));
+    await db.batch((batch) => batch.insertAll(db.abilities, _abilitiesFromJson(jsonDecode(abilitiesJson))));
+    await db.batch((batch) => batch.insertAll(db.stats, _statsFromJson(jsonDecode(dexJson))));
+    await db.batch((batch) => batch.insertAll(db.learnSets, _learnsetsFromJson(jsonDecode(learnSetJson))));
+    await db.batch((batch) => batch.insertAll(db.moves, _movesFromJson(jsonDecode(movesJson))));
   }
-}
 
-class Pokemons extends Table {
-  @JsonKey('num')
-  IntColumn get id => integer().nullable()();
+  List<Ability> _abilitiesFromJson(Map<String, dynamic> json) {
+    final List<Ability> list = [];
 
-  TextColumn get name => text().nullable()();
+    json.forEach((key, dynamic value) {
+      if (value != null) {
+        list.add(Ability.fromJson(value));
+      }
+    });
+    return list;
+  }
 
-  TextColumn get nameId => text().nullable()();
+  List<LearnSet> _learnsetsFromJson(Map<String, dynamic> json) {
+    final List<LearnSet> list = [];
 
-  @JsonKey('heightm')
-  RealColumn get height => real().nullable()();
+    json.forEach((key, dynamic value) {
+      if (value != null) {
+        if (value['learnset'] != null)
+          list.addAll((value['learnset'] as Map<String, dynamic>).keys.map((e) => LearnSet(nameId: key, moveId: e)).toList());
+      }
+    });
+    return list;
+  }
 
-  @JsonKey('weightkg')
-  RealColumn get weight => real().nullable()();
+  List<Move> _movesFromJson(Map<String, dynamic> json) {
+    final List<Move> list = [];
 
-  TextColumn get types => text().nullable().map(ListConverter<String>())();
+    json.forEach((key, dynamic value) {
+      if (value != null) {
+        list.add(
+          Move(
+            id: key,
+            name: value['name'],
+            type: value['type'],
+            category: value['category'],
+            accuracy: value['accuracy'] is bool ? null : value['accuracy'],
+            basePower: value['basePower'],
+            pp: value['pp'],
+            priority: value['priority'],
+            target: value['target'],
+            shortDesc: value['shortDesc'],
+            desc: value['desc'],
+          ),
+        );
+      }
+    });
+    return list;
+  }
 
-  IntColumn get hp => integer().nullable()();
-
-  IntColumn get atk => integer().nullable()();
-
-  IntColumn get def => integer().nullable()();
-
-  IntColumn get spa => integer().nullable()();
-
-  IntColumn get spd => integer().nullable()();
-
-  IntColumn get spe => integer().nullable()();
-
-  IntColumn get bst => integer().nullable()();
-
-  TextColumn get abilities => text().nullable().map(PokemonAbilitiesConverter())();
-
-  /*TextColumn get prevo => text().nullable()();
-
-  TextColumn get evos => text().nullable().map(ListConverter<String>())();
-
-  IntColumn get evoLevel => integer().nullable()();
-
-  TextColumn get evoType => text().nullable()();
-
-  TextColumn get evoItem => text().nullable()();
-
-  TextColumn get evoMove => text().nullable()();
-
-  TextColumn get evoCondition => text().nullable()();
-
-  /// Pokemon base forme (e.g. Deoxys normal, Landorus Incarnate)
-  TextColumn get baseForme => text().nullable()();
-
-  /// Forme name (e.g. Mega-Y, Gmax)
-  TextColumn get forme => text().nullable()();
-
-  /// Base pokemon, always here if forme exists
-  TextColumn get baseSpecies => text().nullable()();
-
-  /// Alternative formes (e.g. Mega / Primal)
-  TextColumn get otherFormes => text().nullable().map(ListConverter<String>())();
-
-  TextColumn get cosmeticFormes => text().nullable().map(ListConverter<String>())();
-
-  TextColumn get formeOrder => text().nullable().map(ListConverter<String>())();
-
-  TextColumn get changesFrom => text().nullable()();
-
-  TextColumn get canGigantamax => text().nullable()();
-
-  /// Required item in order to change form (e.g. Charizardite X)
-  TextColumn get requiredItem => text().nullable()();*/
-
-  TextColumn get tier => text().nullable()();
-
-  ///TextColumn get isNonStandard => text().nullable()();
-
-  static List<Pokemon> fromJson(Map<String, dynamic> json) {
+  List<Pokemon> _pokemonsFromJson(Map<String, dynamic> json) {
     final List<Pokemon> list = [];
+
+    json.forEach((key, dynamic value) {
+      if (value != null) {
+        list.add(Pokemon(
+          id: value['num'] as int,
+          name: value['name'] as String,
+          nameId: toId(value['name']),
+          height: (value['heightm'] as num).toDouble(),
+          weight: (value['weightkg'] as num).toDouble(),
+          types: (value['types'] as List).map((e) => e as String).toList(),
+          abilities: PokemonAbilities.fromJson(value['abilities']),
+        ));
+      }
+    });
+    return list;
+  }
+
+  List<Stat> _statsFromJson(Map<String, dynamic> json) {
+    final List<Stat> list = [];
 
     json.forEach((key, dynamic value) {
       if (value != null) {
@@ -160,13 +134,8 @@ class Pokemons extends Table {
         int spe = value['baseStats']['spe'] as int;
         int bst = hp + atk + def + spa + spd + spe;
 
-        list.add(Pokemon(
-          id: value['num'] as int,
-          name: value['name'] as String,
-          nameId: MyDatabase.toId(value['name']),
-          height: (value['heightm'] as num).toDouble(),
-          weight: (value['weightkg'] as num).toDouble(),
-          types: (value['types'] as List).map((e) => e as String).toList(),
+        list.add(Stat(
+          nameId: toId(value['name']),
           hp: hp,
           atk: atk,
           def: def,
@@ -174,57 +143,9 @@ class Pokemons extends Table {
           spd: spd,
           spe: spe,
           bst: bst,
-          abilities: PokemonAbilities.fromJson(value['abilities']),
-          tier: null,///value['tier'] as String,
         ));
       }
     });
     return list;
-  }
-}
-
-@DataClassName('Ability')
-class Abilities extends Table {
-  @JsonKey('num')
-  IntColumn get id => integer()();
-
-  TextColumn get name => text()();
-
-  TextColumn get shortDesc => text()();
-
-  TextColumn get desc => text()();
-
-  RealColumn get rating => real()();
-
-  static List<Ability> fromJson(Map<String, dynamic> json) {
-    final List<Ability> list = [];
-
-    json.forEach((key, dynamic value) {
-      if (value != null) {
-        list.add(Ability.fromJson(value));
-      }
-    });
-    return list;
-  }
-}
-
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'db.sqlite'));
-
-    return VmDatabase(file);
-  });
-}
-
-@UseMoor(tables: [Pokemons, Abilities])
-class MyDatabase extends _$MyDatabase {
-  MyDatabase() : super(_openConnection());
-
-  @override
-  int get schemaVersion => 1;
-
-  static String toId(String s) {
-    return s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
   }
 }
