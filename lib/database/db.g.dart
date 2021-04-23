@@ -15,6 +15,8 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
   final double weight;
   final List<String> types;
   final PokemonAbilities abilities;
+  final PokemonEvolutions evolution;
+  final String tier;
   Pokemon(
       {required this.id,
       required this.name,
@@ -22,7 +24,9 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
       required this.height,
       required this.weight,
       required this.types,
-      required this.abilities});
+      required this.abilities,
+      required this.evolution,
+      required this.tier});
   factory Pokemon.fromData(Map<String, dynamic> data, GeneratedDatabase db,
       {String? prefix}) {
     final effectivePrefix = prefix ?? '';
@@ -42,6 +46,9 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
           stringType.mapFromDatabaseResponse(data['${effectivePrefix}types']))!,
       abilities: $PokemonsTable.$converter1.mapToDart(stringType
           .mapFromDatabaseResponse(data['${effectivePrefix}abilities']))!,
+      evolution: $PokemonsTable.$converter2.mapToDart(stringType
+          .mapFromDatabaseResponse(data['${effectivePrefix}evolution']))!,
+      tier: stringType.mapFromDatabaseResponse(data['${effectivePrefix}tier'])!,
     );
   }
   @override
@@ -60,6 +67,11 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
       final converter = $PokemonsTable.$converter1;
       map['abilities'] = Variable<String>(converter.mapToSql(abilities)!);
     }
+    {
+      final converter = $PokemonsTable.$converter2;
+      map['evolution'] = Variable<String>(converter.mapToSql(evolution)!);
+    }
+    map['tier'] = Variable<String>(tier);
     return map;
   }
 
@@ -72,6 +84,8 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
       weight: Value(weight),
       types: Value(types),
       abilities: Value(abilities),
+      evolution: Value(evolution),
+      tier: Value(tier),
     );
   }
 
@@ -86,6 +100,8 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
       weight: serializer.fromJson<double>(json['weight']),
       types: serializer.fromJson<List<String>>(json['types']),
       abilities: serializer.fromJson<PokemonAbilities>(json['abilities']),
+      evolution: serializer.fromJson<PokemonEvolutions>(json['evolution']),
+      tier: serializer.fromJson<String>(json['tier']),
     );
   }
   @override
@@ -99,6 +115,8 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
       'weight': serializer.toJson<double>(weight),
       'types': serializer.toJson<List<String>>(types),
       'abilities': serializer.toJson<PokemonAbilities>(abilities),
+      'evolution': serializer.toJson<PokemonEvolutions>(evolution),
+      'tier': serializer.toJson<String>(tier),
     };
   }
 
@@ -109,7 +127,9 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
           double? height,
           double? weight,
           List<String>? types,
-          PokemonAbilities? abilities}) =>
+          PokemonAbilities? abilities,
+          PokemonEvolutions? evolution,
+          String? tier}) =>
       Pokemon(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -118,6 +138,8 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
         weight: weight ?? this.weight,
         types: types ?? this.types,
         abilities: abilities ?? this.abilities,
+        evolution: evolution ?? this.evolution,
+        tier: tier ?? this.tier,
       );
   @override
   String toString() {
@@ -128,7 +150,9 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
           ..write('height: $height, ')
           ..write('weight: $weight, ')
           ..write('types: $types, ')
-          ..write('abilities: $abilities')
+          ..write('abilities: $abilities, ')
+          ..write('evolution: $evolution, ')
+          ..write('tier: $tier')
           ..write(')'))
         .toString();
   }
@@ -142,8 +166,12 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
               nameId.hashCode,
               $mrjc(
                   height.hashCode,
-                  $mrjc(weight.hashCode,
-                      $mrjc(types.hashCode, abilities.hashCode)))))));
+                  $mrjc(
+                      weight.hashCode,
+                      $mrjc(
+                          types.hashCode,
+                          $mrjc(abilities.hashCode,
+                              $mrjc(evolution.hashCode, tier.hashCode)))))))));
   @override
   bool operator ==(dynamic other) =>
       identical(this, other) ||
@@ -154,7 +182,9 @@ class Pokemon extends DataClass implements Insertable<Pokemon> {
           other.height == this.height &&
           other.weight == this.weight &&
           other.types == this.types &&
-          other.abilities == this.abilities);
+          other.abilities == this.abilities &&
+          other.evolution == this.evolution &&
+          other.tier == this.tier);
 }
 
 class PokemonsCompanion extends UpdateCompanion<Pokemon> {
@@ -165,6 +195,8 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
   final Value<double> weight;
   final Value<List<String>> types;
   final Value<PokemonAbilities> abilities;
+  final Value<PokemonEvolutions> evolution;
+  final Value<String> tier;
   const PokemonsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -173,6 +205,8 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
     this.weight = const Value.absent(),
     this.types = const Value.absent(),
     this.abilities = const Value.absent(),
+    this.evolution = const Value.absent(),
+    this.tier = const Value.absent(),
   });
   PokemonsCompanion.insert({
     required int id,
@@ -182,13 +216,17 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
     required double weight,
     required List<String> types,
     required PokemonAbilities abilities,
+    required PokemonEvolutions evolution,
+    required String tier,
   })   : id = Value(id),
         name = Value(name),
         nameId = Value(nameId),
         height = Value(height),
         weight = Value(weight),
         types = Value(types),
-        abilities = Value(abilities);
+        abilities = Value(abilities),
+        evolution = Value(evolution),
+        tier = Value(tier);
   static Insertable<Pokemon> custom({
     Expression<int>? id,
     Expression<String>? name,
@@ -197,6 +235,8 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
     Expression<double>? weight,
     Expression<List<String>>? types,
     Expression<PokemonAbilities>? abilities,
+    Expression<PokemonEvolutions>? evolution,
+    Expression<String>? tier,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -206,6 +246,8 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
       if (weight != null) 'weight': weight,
       if (types != null) 'types': types,
       if (abilities != null) 'abilities': abilities,
+      if (evolution != null) 'evolution': evolution,
+      if (tier != null) 'tier': tier,
     });
   }
 
@@ -216,7 +258,9 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
       Value<double>? height,
       Value<double>? weight,
       Value<List<String>>? types,
-      Value<PokemonAbilities>? abilities}) {
+      Value<PokemonAbilities>? abilities,
+      Value<PokemonEvolutions>? evolution,
+      Value<String>? tier}) {
     return PokemonsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
@@ -225,6 +269,8 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
       weight: weight ?? this.weight,
       types: types ?? this.types,
       abilities: abilities ?? this.abilities,
+      evolution: evolution ?? this.evolution,
+      tier: tier ?? this.tier,
     );
   }
 
@@ -254,6 +300,13 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
       final converter = $PokemonsTable.$converter1;
       map['abilities'] = Variable<String>(converter.mapToSql(abilities.value)!);
     }
+    if (evolution.present) {
+      final converter = $PokemonsTable.$converter2;
+      map['evolution'] = Variable<String>(converter.mapToSql(evolution.value)!);
+    }
+    if (tier.present) {
+      map['tier'] = Variable<String>(tier.value);
+    }
     return map;
   }
 
@@ -266,7 +319,9 @@ class PokemonsCompanion extends UpdateCompanion<Pokemon> {
           ..write('height: $height, ')
           ..write('weight: $weight, ')
           ..write('types: $types, ')
-          ..write('abilities: $abilities')
+          ..write('abilities: $abilities, ')
+          ..write('evolution: $evolution, ')
+          ..write('tier: $tier')
           ..write(')'))
         .toString();
   }
@@ -353,9 +408,31 @@ class $PokemonsTable extends Pokemons with TableInfo<$PokemonsTable, Pokemon> {
     );
   }
 
+  final VerificationMeta _evolutionMeta = const VerificationMeta('evolution');
+  @override
+  late final GeneratedTextColumn evolution = _constructEvolution();
+  GeneratedTextColumn _constructEvolution() {
+    return GeneratedTextColumn(
+      'evolution',
+      $tableName,
+      false,
+    );
+  }
+
+  final VerificationMeta _tierMeta = const VerificationMeta('tier');
+  @override
+  late final GeneratedTextColumn tier = _constructTier();
+  GeneratedTextColumn _constructTier() {
+    return GeneratedTextColumn(
+      'tier',
+      $tableName,
+      false,
+    );
+  }
+
   @override
   List<GeneratedColumn> get $columns =>
-      [id, name, nameId, height, weight, types, abilities];
+      [id, name, nameId, height, weight, types, abilities, evolution, tier];
   @override
   $PokemonsTable get asDslTable => this;
   @override
@@ -398,6 +475,13 @@ class $PokemonsTable extends Pokemons with TableInfo<$PokemonsTable, Pokemon> {
     }
     context.handle(_typesMeta, const VerificationResult.success());
     context.handle(_abilitiesMeta, const VerificationResult.success());
+    context.handle(_evolutionMeta, const VerificationResult.success());
+    if (data.containsKey('tier')) {
+      context.handle(
+          _tierMeta, tier.isAcceptableOrUnknown(data['tier']!, _tierMeta));
+    } else if (isInserting) {
+      context.missing(_tierMeta);
+    }
     return context;
   }
 
@@ -418,6 +502,8 @@ class $PokemonsTable extends Pokemons with TableInfo<$PokemonsTable, Pokemon> {
       ListConverter<String>();
   static TypeConverter<PokemonAbilities, String> $converter1 =
       PokemonAbilitiesConverter();
+  static TypeConverter<PokemonEvolutions, String> $converter2 =
+      PokemonEvolutionsConverter();
 }
 
 class Stat extends DataClass implements Insertable<Stat> {

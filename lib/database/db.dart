@@ -35,23 +35,23 @@ class MyDatabase extends _$MyDatabase {
     return s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
   }
 
-  void fillDataBaseFromJson(MyDatabase db) async {
+  void fillDataBaseFromJson() async {
     final dexJson = await rootBundle.loadString('assets/pokedex.json');
     final abilitiesJson = await rootBundle.loadString('assets/abilities.json');
     final learnSetJson = await rootBundle.loadString('assets/learnset.json');
     final movesJson = await rootBundle.loadString('assets/moves.json');
 
-    await db.delete(db.pokemons).go();
-    await db.delete(db.abilities).go();
-    await db.delete(db.stats).go();
-    await db.delete(db.learnSets).go();
-    await db.delete(db.moves).go();
+    await delete(pokemons).go();
+    await delete(abilities).go();
+    await delete(stats).go();
+    await delete(learnSets).go();
+    await delete(moves).go();
 
-    await db.batch((batch) => batch.insertAll(db.pokemons, _pokemonsFromJson(jsonDecode(dexJson))));
-    await db.batch((batch) => batch.insertAll(db.abilities, _abilitiesFromJson(jsonDecode(abilitiesJson))));
-    await db.batch((batch) => batch.insertAll(db.stats, _statsFromJson(jsonDecode(dexJson))));
-    await db.batch((batch) => batch.insertAll(db.learnSets, _learnsetsFromJson(jsonDecode(learnSetJson))));
-    await db.batch((batch) => batch.insertAll(db.moves, _movesFromJson(jsonDecode(movesJson))));
+    await batch((batch) => batch.insertAll(pokemons, _pokemonsFromJson(jsonDecode(dexJson))));
+    await batch((batch) => batch.insertAll(abilities, _abilitiesFromJson(jsonDecode(abilitiesJson))));
+    await batch((batch) => batch.insertAll(stats, _statsFromJson(jsonDecode(dexJson))));
+    await batch((batch) => batch.insertAll(learnSets, _learnsetsFromJson(jsonDecode(learnSetJson))));
+    await batch((batch) => batch.insertAll(moves, _movesFromJson(jsonDecode(movesJson))));
   }
 
   List<Ability> _abilitiesFromJson(Map<String, dynamic> json) {
@@ -108,13 +108,15 @@ class MyDatabase extends _$MyDatabase {
     json.forEach((key, dynamic value) {
       if (value != null) {
         list.add(Pokemon(
-          id: value['num'] as int,
-          name: value['name'] as String,
+          id: value['num'],
+          name: value['name'],
           nameId: toId(value['name']),
           height: (value['heightm'] as num).toDouble(),
           weight: (value['weightkg'] as num).toDouble(),
           types: (value['types'] as List).map((e) => e as String).toList(),
           abilities: PokemonAbilities.fromJson(value['abilities']),
+          evolution: PokemonEvolutions.fromJson(value),
+          tier: value['tier'] ?? 'Illegal',
         ));
       }
     });

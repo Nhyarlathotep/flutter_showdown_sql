@@ -14,14 +14,16 @@ class Tuple<T, E> {
   String toString() => '($first, $second)';
 }
 
-class DbViewer extends StatefulWidget {
+class SliverDbViewer extends StatefulWidget {
   final moor.GeneratedDatabase db;
   final String query;
   final List<String> sortColumns;
   final List<String> filterColumns;
   final Widget Function(BuildContext context, int index, Map<String, dynamic> data) rowRenderer;
+  final EdgeInsets padding;
 
-  DbViewer({
+  SliverDbViewer({
+    this.padding: EdgeInsets.zero,
     required this.db,
     required this.query,
     this.sortColumns = const [],
@@ -30,10 +32,10 @@ class DbViewer extends StatefulWidget {
   });
 
   @override
-  _DbViewerState createState() => _DbViewerState();
+  _SliverDbViewerState createState() => _SliverDbViewerState();
 }
 
-class _DbViewerState extends State<DbViewer> {
+class _SliverDbViewerState extends State<SliverDbViewer> {
   String filterRule = '';
   Tuple<String, bool> sortRule = Tuple('', true);
   late Map<String, List<String>> filters;
@@ -85,59 +87,61 @@ class _DbViewerState extends State<DbViewer> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: queryResult,
-      builder: (BuildContext context, AsyncSnapshot<List<moor.QueryRow>> snapshot) {
-        if (snapshot.hasData) {
-          return SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                if (index == 0) {
-                  return Card(
-                    child: Wrap(
-                      spacing: 4,
-                      alignment: WrapAlignment.spaceEvenly,
-                      children: [
-                        ...widget.sortColumns.map(
-                              (c) => _HeadingCell(
-                            label: c,
-                            onTap: () {
-                              setState(() {
-                                filterRule = '';
-                                _updateSortRule(c);
-                                _updateQuery();
-                              });
-                            },
-                            visible: sortRule.first == c,
-                            sorted: sortRule.second,
+    return SliverPadding(
+      /// Fix issue: https://github.com/flutter/flutter/issues/55170
+      padding: widget.padding,
+      sliver: FutureBuilder(
+        future: queryResult,
+        builder: (BuildContext context, AsyncSnapshot<List<moor.QueryRow>> snapshot) {
+          if (snapshot.hasData) {
+            return SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  if (index == 0) {
+                    return Card(
+                      child: Wrap(
+                        spacing: 4,
+                        alignment: WrapAlignment.spaceEvenly,
+                        children: [
+                          ...widget.sortColumns.map(
+                                (c) => _HeadingCell(
+                              label: c,
+                              onTap: () {
+                                setState(() {
+                                  filterRule = '';
+                                  _updateSortRule(c);
+                                  _updateQuery();
+                                });
+                              },
+                              visible: sortRule.first == c,
+                              sorted: sortRule.second,
+                            ),
                           ),
-                        ),
-                        ...widget.filterColumns.map(
-                              (c) => _HeadingCell(
-                            label: c,
-                            onTap: () {
-                              setState(() {
-                                filterRule = filterRule == c ? '' : c;
-                              });
-                            },
-                            visible: false,
-                            sorted: null,
+                          ...widget.filterColumns.map(
+                                (c) => _HeadingCell(
+                              label: c,
+                              onTap: () {
+                                setState(() {
+                                  filterRule = filterRule == c ? '' : c;
+                                });
+                              },
+                              visible: false,
+                              sorted: null,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return widget.rowRenderer(context, index - 1, snapshot.data![index - 1].data);
-              },
-              childCount: snapshot.data!.length + 1,
-            ),
-          );
-        }
-        return SliverFillRemaining(
-          child: Center(child: CircularProgressIndicator()),
-        );
-      },
+                        ],
+                      ),
+                    );
+                  }
+                  return widget.rowRenderer(context, index - 1, snapshot.data![index - 1].data);
+                },
+                childCount: snapshot.data!.length + 1,
+              ),
+            );
+          }
+          return SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
+        },
+      ),
     );
 
     /*return NestedScrollView(
@@ -339,9 +343,7 @@ class _SortArrowState extends State<_SortArrow> with TickerProviderStateMixin {
     return Opacity(
       opacity: _opacityAnimation.value,
       child: Transform(
-        transform:
-            Matrix4.rotationZ(_orientationOffset + _orientationAnimation.value)
-              ..setTranslationRaw(0, _arrowIconBaselineOffset, 0.0),
+        transform: Matrix4.rotationZ(_orientationOffset + _orientationAnimation.value)..setTranslationRaw(0, _arrowIconBaselineOffset, 0.0),
         alignment: Alignment.center,
         child: const Icon(
           Icons.arrow_drop_up,

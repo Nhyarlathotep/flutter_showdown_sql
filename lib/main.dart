@@ -1,16 +1,20 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_db_test/sliver_db_viewer.dart';
+import 'package:provider/provider.dart';
+
+import 'database/db.dart';
 import 'widgets/stats_box.dart';
 import 'widgets/pokemon_icon.dart';
-import 'widgets/custom_slivers.dart';
+import 'pokedex/pokemon_details.dart';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_db_test/db_viewer.dart';
-import 'package:provider/provider.dart';
-import 'database/db.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   final database = MyDatabase();
+
+  /*database.fillDataBaseFromJson();
+  return;*/
 
   runApp(
     MultiProvider(
@@ -37,8 +41,7 @@ class MyApp extends StatelessWidget {
         child: Scaffold(
           body: CustomScrollView(
             slivers: [
-              SliverFloatingHeader(child: Text('Pokemons:')),
-              DbViewer(
+              SliverDbViewer(
                 db: db,
                 query: "SELECT * FROM pokemons INNER JOIN stats on stats.name_id = pokemons.name_id",
                 sortColumns: [
@@ -62,8 +65,7 @@ class MyApp extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                PokemonDetails(pokemon, stats),
+                            builder: (context) => PokemonDetails(pokemon, stats),
                           ),
                         );
                       },
@@ -101,9 +103,12 @@ class MyApp extends StatelessWidget {
                               child: Column(
                                 children: [
                                   Text(pokemon.name),
-                                  ...pokemon.abilities.toList().map((a) => Text(
-                                      a,
-                                      style: const TextStyle(fontSize: 10)))
+                                  ...pokemon.abilities.toList().map(
+                                        (a) => Text(
+                                          a,
+                                          style: const TextStyle(fontSize: 10),
+                                        ),
+                                      )
                                 ],
                               ),
                             ),
@@ -119,46 +124,6 @@ class MyApp extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class PokemonDetails extends StatelessWidget {
-  final Pokemon pokemon;
-  final Stat stats;
-
-  PokemonDetails(this.pokemon, this.stats);
-
-  @override
-  Widget build(BuildContext context) {
-    final db = Provider.of<MyDatabase>(context);
-
-    return SafeArea(
-      child: Scaffold(
-        body: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              title: Text(pokemon.name),
-              pinned: true,
-            ),
-            SliverFloatingHeader(child: Text('Moves:')),
-            DbViewer(
-              db: db,
-              sortColumns: ['name', 'accuracy', 'base_power'],
-              query: "SELECT * FROM moves INNER JOIN learn_sets ON learn_sets.move_id = moves.id WHERE name_id = '${pokemon.nameId}'",
-              rowRenderer: (BuildContext context, int index, Map<String, dynamic> data) {
-                final move = Move.fromData(data, db);
-
-                return Container(
-                  padding: EdgeInsets.all(8),
-                  child: Text(move.name),
-                  color: index % 2 == 0 ? Colors.blue[100] : Colors.transparent,
-                );
-              },
-            ),
-          ],
-        )
       ),
     );
   }
