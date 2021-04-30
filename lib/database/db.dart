@@ -11,7 +11,6 @@ import 'tables/abilities.dart';
 import 'tables/learnsets.dart';
 import 'tables/moves.dart';
 import 'tables/pokemons.dart';
-import 'tables/stats.dart';
 
 part 'db.g.dart';
 
@@ -24,7 +23,7 @@ LazyDatabase _openConnection() {
   });
 }
 
-@UseMoor(tables: [Pokemons, Stats, Abilities, LearnSets, Moves])
+@UseMoor(tables: [Pokemons, Abilities, LearnSets, Moves])
 class MyDatabase extends _$MyDatabase {
   MyDatabase() : super(_openConnection());
 
@@ -35,6 +34,14 @@ class MyDatabase extends _$MyDatabase {
     return s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
   }
 
+  Future<Pokemon> getPokemonByName(String name) {
+    return (select(pokemons)..where((tbl) => tbl.name.equals(name))).getSingle();
+  }
+
+  Future<Ability> getAbilityByName(String name) {
+    return (select(abilities)..where((tbl) => tbl.name.equals(name))).getSingle();
+  }
+
   void fillDataBaseFromJson() async {
     final dexJson = await rootBundle.loadString('assets/pokedex.json');
     final abilitiesJson = await rootBundle.loadString('assets/abilities.json');
@@ -43,13 +50,11 @@ class MyDatabase extends _$MyDatabase {
 
     await delete(pokemons).go();
     await delete(abilities).go();
-    await delete(stats).go();
     await delete(learnSets).go();
     await delete(moves).go();
 
     await batch((batch) => batch.insertAll(pokemons, _pokemonsFromJson(jsonDecode(dexJson))));
     await batch((batch) => batch.insertAll(abilities, _abilitiesFromJson(jsonDecode(abilitiesJson))));
-    await batch((batch) => batch.insertAll(stats, _statsFromJson(jsonDecode(dexJson))));
     await batch((batch) => batch.insertAll(learnSets, _learnsetsFromJson(jsonDecode(learnSetJson))));
     await batch((batch) => batch.insertAll(moves, _movesFromJson(jsonDecode(movesJson))));
   }
@@ -107,27 +112,6 @@ class MyDatabase extends _$MyDatabase {
 
     json.forEach((key, dynamic value) {
       if (value != null) {
-        list.add(Pokemon(
-          id: value['num'],
-          name: value['name'],
-          nameId: toId(value['name']),
-          height: (value['heightm'] as num).toDouble(),
-          weight: (value['weightkg'] as num).toDouble(),
-          types: (value['types'] as List).map((e) => e as String).toList(),
-          abilities: PokemonAbilities.fromJson(value['abilities']),
-          evolution: PokemonEvolutions.fromJson(value),
-          tier: value['tier'] ?? 'Illegal',
-        ));
-      }
-    });
-    return list;
-  }
-
-  List<Stat> _statsFromJson(Map<String, dynamic> json) {
-    final List<Stat> list = [];
-
-    json.forEach((key, dynamic value) {
-      if (value != null) {
         int hp = value['baseStats']['hp'] as int;
         int atk = value['baseStats']['atk'] as int;
         int def = value['baseStats']['def'] as int;
@@ -136,7 +120,9 @@ class MyDatabase extends _$MyDatabase {
         int spe = value['baseStats']['spe'] as int;
         int bst = hp + atk + def + spa + spd + spe;
 
-        list.add(Stat(
+        list.add(Pokemon(
+          id: value['num'],
+          name: value['name'],
           nameId: toId(value['name']),
           hp: hp,
           atk: atk,
@@ -145,6 +131,13 @@ class MyDatabase extends _$MyDatabase {
           spd: spd,
           spe: spe,
           bst: bst,
+          height: (value['heightm'] as num).toDouble(),
+          weight: (value['weightkg'] as num).toDouble(),
+          types: (value['types'] as List).map((e) => e as String).toList(),
+          abilities: PokemonAbilities.fromJson(value['abilities']),
+          evolution: PokemonEvolutions.fromJson(value),
+          formes: PokemonFormes.fromJson(value),
+          tier: value['tier'] ?? 'Illegal',
         ));
       }
     });

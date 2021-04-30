@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:moor/moor.dart' as moor;
 
-import 'search_bar.dart';
-
 class Tuple<T, E> {
   T first;
   E second;
@@ -14,28 +12,28 @@ class Tuple<T, E> {
   String toString() => '($first, $second)';
 }
 
-class SliverDbViewer extends StatefulWidget {
+class DbView extends StatefulWidget {
   final moor.GeneratedDatabase db;
   final String query;
   final List<String> sortColumns;
   final List<String> filterColumns;
   final Widget Function(BuildContext context, int index, Map<String, dynamic> data) rowRenderer;
-  final EdgeInsets padding;
+  final List<Widget> slivers;
 
-  SliverDbViewer({
-    this.padding: EdgeInsets.zero,
+  DbView({
     required this.db,
     required this.query,
+    this.slivers = const [],
     this.sortColumns = const [],
     this.filterColumns = const [],
     required this.rowRenderer,
   });
 
   @override
-  _SliverDbViewerState createState() => _SliverDbViewerState();
+  _DbViewState createState() => _DbViewState();
 }
 
-class _SliverDbViewerState extends State<SliverDbViewer> {
+class _DbViewState extends State<DbView> {
   String filterRule = '';
   Tuple<String, bool> sortRule = Tuple('', true);
   late Map<String, List<String>> filters;
@@ -63,8 +61,7 @@ class _SliverDbViewerState extends State<SliverDbViewer> {
         if (i > 0 && filter.value.isNotEmpty && filters.entries.elementAt(i - 1).value.isNotEmpty)
           filterQuery += ') and (';
         for (int j = 0; j < filter.value.length; j++) {
-          if (j > 0)
-            filterQuery += ' or ';
+          if (j > 0) filterQuery += ' or ';
           filterQuery += "${filter.key} LIKE '%\"${filter.value[j]}\"%'";
         }
       }
@@ -87,149 +84,61 @@ class _SliverDbViewerState extends State<SliverDbViewer> {
 
   @override
   Widget build(BuildContext context) {
-    return SliverPadding(
-      /// Fix issue: https://github.com/flutter/flutter/issues/55170
-      padding: widget.padding,
-      sliver: FutureBuilder(
-        future: queryResult,
-        builder: (BuildContext context, AsyncSnapshot<List<moor.QueryRow>> snapshot) {
-          if (snapshot.hasData) {
-            return SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index == 0) {
-                    return Card(
-                      child: Wrap(
-                        spacing: 4,
-                        alignment: WrapAlignment.spaceEvenly,
-                        children: [
-                          ...widget.sortColumns.map(
-                                (c) => _HeadingCell(
-                              label: c,
-                              onTap: () {
-                                setState(() {
-                                  filterRule = '';
-                                  _updateSortRule(c);
-                                  _updateQuery();
-                                });
-                              },
-                              visible: sortRule.first == c,
-                              sorted: sortRule.second,
-                            ),
-                          ),
-                          ...widget.filterColumns.map(
-                                (c) => _HeadingCell(
-                              label: c,
-                              onTap: () {
-                                setState(() {
-                                  filterRule = filterRule == c ? '' : c;
-                                });
-                              },
-                              visible: false,
-                              sorted: null,
-                            ),
-                          ),
-                        ],
+    return FutureBuilder(
+      future: queryResult,
+      builder: (BuildContext context, AsyncSnapshot<List<moor.QueryRow>> snapshot) {
+        if (snapshot.hasData) {
+          return CustomScrollView(
+            slivers: [
+              ...widget.slivers,
+              /*SliverToBoxAdapter(
+                child: Card(
+                  child: Wrap(
+                    spacing: 4,
+                    alignment: WrapAlignment.spaceEvenly,
+                    children: [
+                      ...widget.sortColumns.map(
+                            (c) => _HeadingCell(
+                          label: c,
+                          onTap: () {
+                            setState(() {
+                              filterRule = '';
+                              _updateSortRule(c);
+                              _updateQuery();
+                            });
+                          },
+                          visible: sortRule.first == c,
+                          sorted: sortRule.second,
+                        ),
                       ),
-                    );
-                  }
-                  return widget.rowRenderer(context, index - 1, snapshot.data![index - 1].data);
-                },
-                childCount: snapshot.data!.length + 1,
-              ),
-            );
-          }
-          return SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
-        },
-      ),
-    );
-
-    /*return NestedScrollView(
-            physics: NeverScrollableScrollPhysics(),
-            headerSliverBuilder: (context, innerBoxIsScrolled) {
-              return [
-                if (filters.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: Wrap(
-                        children: [
-                          for (final entry in filters.entries)
-                            ...entry.value.map(
-                                  (f) => InputChip(
-                                label: Text(f),
-                                padding: EdgeInsets.all(2.0),
-                                onDeleted: () {
-                                  setState(() {
-                                    filters[entry.key]!.remove(f);
-                                    _updateQuery();
-                                  });
-                                },
-                                backgroundColor: Colors.lightBlue[100],
-                              ),
-                            ),
-                        ]
-                    ),
-                  ),
-                SliverToBoxAdapter(
-                  child: Card(
-                    child: Wrap(
-                      spacing: 4,
-                      alignment: WrapAlignment.spaceEvenly,
-                      children: [
-                        ...widget.sortColumns.map(
-                          (c) => _HeadingCell(
-                            label: c,
-                            onTap: () {
-                              setState(() {
-                                filterRule = '';
-                                _updateSortRule(c);
-                                _updateQuery();
-                              });
-                            },
-                            visible: sortRule.first == c,
-                            sorted: sortRule.second,
-                          ),
+                      ...widget.filterColumns.map(
+                            (c) => _HeadingCell(
+                          label: c,
+                          onTap: () {
+                            setState(() {
+                              filterRule = filterRule == c ? '' : c;
+                            });
+                          },
+                          visible: false,
+                          sorted: null,
                         ),
-                        ...widget.filterColumns.map(
-                          (c) => _HeadingCell(
-                            label: c,
-                            onTap: () {
-                              setState(() {
-                                filterRule = filterRule == c ? '' : c;
-                              });
-                            },
-                            visible: false,
-                            sorted: null,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                if (filterRule.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: SearchBar(
-                      clearOnSubmit: true,
-                      onSearch: (query) {
-                        setState(() {
-                          filters[filterRule]!.add(query);
-                          _updateQuery();
-                        });
-                      },
-                    ),
-                  ),
-              ];
-            },
-            body: ListView.builder(
-              shrinkWrap: true,
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                return widget.rowRenderer(context, index, snapshot.data![index].data);
-              },
-            ),
+              ),*/
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext context, int index) => widget.rowRenderer(context, index, snapshot.data![index].data),
+                  childCount: snapshot.data!.length,
+                ),
+              ),
+            ],
           );
+        }
         return Center(child: CircularProgressIndicator());
       },
-    );*/
+    );
   }
 }
 
@@ -262,7 +171,8 @@ class _SortArrowState extends State<_SortArrow> with TickerProviderStateMixin {
 
   bool? _up;
 
-  static final Animatable<double> _turnTween = Tween<double>(begin: 0.0, end: pi).chain(CurveTween(curve: Curves.easeIn));
+  static final Animatable<double> _turnTween =
+      Tween<double>(begin: 0.0, end: pi).chain(CurveTween(curve: Curves.easeIn));
 
   @override
   void initState() {
@@ -305,8 +215,7 @@ class _SortArrowState extends State<_SortArrow> with TickerProviderStateMixin {
     bool skipArrow = false;
     final bool? newUp = widget.up ?? _up;
     if (oldWidget.visible != widget.visible) {
-      if (widget.visible &&
-          (_opacityController.status == AnimationStatus.dismissed)) {
+      if (widget.visible && (_opacityController.status == AnimationStatus.dismissed)) {
         _orientationController.stop();
         _orientationController.value = 0.0;
         _orientationOffset = newUp! ? 0.0 : pi;
@@ -343,7 +252,8 @@ class _SortArrowState extends State<_SortArrow> with TickerProviderStateMixin {
     return Opacity(
       opacity: _opacityAnimation.value,
       child: Transform(
-        transform: Matrix4.rotationZ(_orientationOffset + _orientationAnimation.value)..setTranslationRaw(0, _arrowIconBaselineOffset, 0.0),
+        transform: Matrix4.rotationZ(_orientationOffset + _orientationAnimation.value)
+          ..setTranslationRaw(0, _arrowIconBaselineOffset, 0.0),
         alignment: Alignment.center,
         child: const Icon(
           Icons.arrow_drop_up,

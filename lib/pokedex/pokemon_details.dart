@@ -1,37 +1,29 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_db_test/constants.dart';
 import 'package:flutter_db_test/database/db.dart';
 import 'package:flutter_db_test/database/tables/pokemons.dart';
 import 'package:flutter_db_test/sliver_db_viewer.dart';
 import 'package:flutter_db_test/widgets/custom_slivers.dart';
-import 'package:flutter_db_test/widgets/stats_box.dart';
 import 'package:provider/provider.dart';
 
 import '../widgets/pokemon_icon.dart';
+import 'ability_details.dart';
 import 'widgets/type_box.dart';
+import 'widgets/stat_bar.dart';
 
 class PokemonDetails extends StatelessWidget {
   final Pokemon pokemon;
-  final Stat stats;
 
-  PokemonDetails(this.pokemon, this.stats);
+  PokemonDetails(this.pokemon);
 
   @override
   Widget build(BuildContext context) {
     final db = Provider.of<MyDatabase>(context);
 
-    const String ServerHost = 'play.pokemonshowdown.com';
-    const String ServerUrl = 'https://$ServerHost';
-
-    final resourceId = pokemon.nameId;
-    //final resourceId = pokemon.forme != null ? '${Parser.toId(pokemon.baseSpecies)}${forme.isEmpty ? '' : '-'}${Parser.toId(forme)}' : pokeId;
-
-    final abilities = [
-      pokemon.abilities.first,
-      pokemon.abilities.second,
-      pokemon.abilities.hidden,
-      pokemon.abilities.special,
-    ];
+    final forme = pokemon.formes.forme?.replaceFirst('Totem', '') ?? '';
+    final resourceId = pokemon.formes.forme != null ? '${MyDatabase.toId(pokemon.formes.baseSpecies!)}${forme.isEmpty ? '' : '-'}${MyDatabase.toId(forme)}' : pokemon.nameId;
+    final abilities = pokemon.abilities.toList;
 
     Future<Widget> _getNextEvo(Pokemon current) async {
       return Row(
@@ -67,13 +59,34 @@ class PokemonDetails extends StatelessWidget {
         );
       }
       while (current.evolution.prevo != null) {
-        current = await (db.select(db.pokemons)..where((tbl) => tbl.name.equals(current.evolution.prevo))).getSingle();
-
-        debugPrint(current.name);
+        current = await db.getPokemonByName(current.evolution.prevo!);
       }
       return SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: await _getNextEvo(current),
+      );
+    }
+
+    Future<Widget> _formesList() async {
+      final base = pokemon.formes.forme != null ? await db.getPokemonByName(pokemon.formes.baseSpecies!) : pokemon;
+      final name = base.formes.baseForme ?? 'Base';
+      final list = [];
+
+      if (base.formes.otherFormes != null) {
+        for (final forme in base.formes.otherFormes!) {
+          final poke = await db.getPokemonByName(forme);
+
+          list.add(PokeBox(poke, label: poke.formes.forme, current: pokemon.name == poke.name));
+        }
+      }
+
+      return Wrap(
+        spacing: 8,
+        direction: Axis.horizontal,
+        children: [
+          PokeBox(base, label: name, current: base.name == pokemon.name),
+          ...list,
+        ],
       );
     }
 
@@ -95,7 +108,8 @@ class PokemonDetails extends StatelessWidget {
             ),
           ),
         ),
-        body: CustomScrollView(
+        body: DbView(
+          db: db,
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
@@ -131,9 +145,7 @@ class PokemonDetails extends StatelessWidget {
                               fadeOutDuration: kThemeChangeDuration,
                               fadeInDuration: kThemeChangeDuration,
                               imageUrl: '$ServerUrl/sprites/gen5/$resourceId.png',
-                              placeholder: (context, url) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
+                              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
                               errorWidget: (context, url, dynamic error) => const Icon(Icons.error),
                             ),
                           ),
@@ -173,10 +185,10 @@ class PokemonDetails extends StatelessWidget {
                                     children: pokemon.types
                                         .map(
                                           (t) => Padding(
-                                            padding: const EdgeInsets.only(left: 8),
-                                            child: TypeBox(t, pressable: false),
-                                          ),
-                                        )
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: TypeBox(t, pressable: false),
+                                      ),
+                                    )
                                         .toList(),
                                   )
                                 ],
@@ -211,16 +223,18 @@ class PokemonDetails extends StatelessWidget {
                                       child: Text('|'),
                                     ),
                                   GestureDetector(
-                                    onTap: () {
-                                      /*Navigator.push(
-                                          context,
-                                          MaterialPageRoute<void>(
-                                            builder: (context) => AbilityDetails(
-                                              abilities[i],
-                                              appBarColor: TypeBox.typeColors[pokemon.types[0]][0],
-                                            ),
+                                    onTap: () async {
+                                      final ability = await db.getAbilityByName(abilities[i]!);
+
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => AbilityDetails(
+                                            ability,
+                                            appBarColor: TypeBox.typeColors[pokemon.types[0]]![0],
                                           ),
-                                        );*/
+                                        ),
+                                      );
                                     },
                                     child: Text(
                                       '${abilities[i]}${i == 2 ? ' (H)' : i == 3 ? ' (S)' : ''}',
@@ -262,12 +276,12 @@ class PokemonDetails extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 8, bottom: 4),
                       child: Text('Base stats :', style: TextStyle(color: Colors.grey[700])),
                     ),
-                    StatBox('HP', stats.hp),
-                    StatBox('Attack', stats.atk),
-                    StatBox('Defense', stats.def),
-                    StatBox('Sp. Atk', stats.spa),
-                    StatBox('Sp. Def', stats.spd),
-                    StatBox('Speed', stats.spe),
+                    StatBar('HP', pokemon.hp),
+                    StatBar('Attack', pokemon.atk),
+                    StatBar('Defense', pokemon.def),
+                    StatBar('Sp. Atk', pokemon.spa),
+                    StatBar('Sp. Def', pokemon.spd),
+                    StatBar('Speed', pokemon.spe),
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Row(
@@ -282,7 +296,7 @@ class PokemonDetails extends StatelessWidget {
                             width: 32,
                             alignment: Alignment.centerRight,
                             child: Text(
-                              '${stats.bst}',
+                              '${pokemon.bst}',
                               style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600),
                             ),
                           ),
@@ -293,7 +307,6 @@ class PokemonDetails extends StatelessWidget {
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.only(top: 8, left: 8, right: 8),
@@ -315,60 +328,77 @@ class PokemonDetails extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 4),
                         child: EvoText(pokemon.evolution),
                       ),
-                    /*
-                    if (pokemon.otherFormes != null || pokemon.forme != null)
+                    if (pokemon.formes.otherFormes != null || pokemon.formes.forme != null)
                       Padding(
-                        padding: const EdgeInsets.only(top: 4),
+                        padding: EdgeInsets.only(
+                          top: pokemon.evolution.prevo == null && pokemon.evolution.evos == null ? 0 : 4,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Formes:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            _formesList(),
+                            const Text('Formes:', style: TextStyle(fontWeight: FontWeight.bold)),
+                            FutureBuilder(
+                              future: _formesList(),
+                              builder: (BuildContext context, AsyncSnapshot<Widget> snapshot) {
+                                if (snapshot.hasData) {
+                                  return snapshot.data!;
+                                }
+                                return Container();
+                              },
+                            )
                           ],
                         ),
                       ),
-                    if (pokemon.requiredItem != null)
+                    if (pokemon.formes.requiredItem != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Row(
                           children: [
                             const Text('Must hold:'),
-                            ItemLink(pokemon.requiredItem),
+                            ItemLink(pokemon.formes.requiredItem!),
                           ],
                         ),
                       ),
                   ],
                 ),
               ),
-            ),*/
-                  ],
-                ),
+            ),
+            SliverAppBar(
+              pinned: true,
+              toolbarHeight: 32,
+              leadingWidth: 80,
+              elevation: 2.5,
+              backgroundColor: ThemeData.light().scaffoldBackgroundColor,
+              leading: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text('Moves:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
               ),
             ),
-
-            SliverDbViewer(
-              db: db,
-              padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-              sortColumns: ['name', 'accuracy', 'base_power'],
-              query: "SELECT * FROM moves INNER JOIN learn_sets ON learn_sets.move_id = moves.id WHERE name_id = '${pokemon.nameId}'",
-              rowRenderer: (BuildContext context, int index, Map<String, dynamic> data) {
-                final move = Move.fromData(data, db);
-
-                return Container(
-                  padding: EdgeInsets.all(8),
-                  child: Text(move.name),
-                  color: index % 2 == 0 ? const Color(0xffebebf7) : Colors.transparent,
-                );
-              },
-            ),
-
           ],
+          sortColumns: ['name', 'power', 'accuracy', 'pp'],
+          filterColumns: ['type', 'category'],
+          query: "SELECT * FROM moves INNER JOIN learn_sets ON learn_sets.move_id = moves.id WHERE name_id = '${pokemon.formes.forme != null ? MyDatabase.toId(pokemon.formes.baseSpecies!) : pokemon.nameId}'",
+          rowRenderer: (context, index, data) => Container(
+            child: MoveCard(Move.fromData(data, db)),
+            color: index % 2 == 0 ? const Color(0xffebebf7) : Colors.transparent,
+          ),
         ),
       ),
     );
+  }
+}
+
+class MyPageRouteBuilder<T> extends PageRouteBuilder {
+  MyPageRouteBuilder({
+    required RoutePageBuilder pageBuilder,
+    Duration transitionDuration = const Duration(milliseconds: 300),
+  }) : super(pageBuilder: pageBuilder, transitionDuration: transitionDuration);
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    final PageTransitionsTheme theme = Theme.of(context).pageTransitionsTheme;
+
+    return theme.builders[ThemeData().platform]!.buildTransitions(this, context, animation, secondaryAnimation, child);
   }
 }
 
@@ -383,34 +413,66 @@ class PokeBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        /*Navigator.pushReplacement(
+        Navigator.pushReplacement(
           context,
-          PageRouteBuilder<PokemonDetails>(
-            pageBuilder: (context, _, __) => PokemonDetails(pokemon),
-            transitionDuration: const Duration(seconds: 0),
-          ),
-        );*/
+            MyPageRouteBuilder<PokemonDetails>(
+              transitionDuration: const Duration(seconds: 0),
+              pageBuilder: (context, _, __) => PokemonDetails(pokemon),
+            ),
+        );
       },
-      child: IntrinsicWidth(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            children: [
-              PokemonIcon(pokemon.id),
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  label ?? pokemon.name,
-                  style: TextStyle(
-                    color: Colors.blue[800],
-                    fontWeight: current ? FontWeight.bold : FontWeight.normal,
-                    decoration: TextDecoration.underline,
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PokemonIcon(pokemon),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                label ?? pokemon.name,
+                style: TextStyle(
+                  color: Colors.blue[800],
+                  fontWeight: current ? FontWeight.bold : FontWeight.normal,
+                  decoration: TextDecoration.underline,
                 ),
-              )
-            ],
-          ),
+              ),
+            )
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class ItemLink extends StatelessWidget {
+  const ItemLink(this.itemName);
+
+  final String itemName;
+
+  @override
+  Widget build(BuildContext context) {
+    /*final items = Provider.of<Map<String, Item>>(context, listen: false);
+    final item = items[Parser.toId(itemName)];*/
+
+    return GestureDetector(
+      /*onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (context) => ItemDetails(item)),
+      ),*/
+      child: Row(
+        children: [
+          const SizedBox(width: 2),
+          //Image.asset('assets/item-icons/${item.spriteNum}.png', height: 16),
+          const SizedBox(width: 2),
+          Text(
+            itemName,
+            style: TextStyle(
+              color: Colors.blue[800],
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -450,10 +512,103 @@ class EvoText extends StatelessWidget {
         ? Row(
             children: [
               Text('Evolves from ${evolution.prevo} (${_evoMethod()}'),
-              /*if (['trade', 'levelHold', 'useItem'].contains(evolution.evoType)) ItemLink(evolution.evoItem),*/
+              if (['trade', 'levelHold', 'useItem'].contains(evolution.evoType))
+                ItemLink(evolution.evoItem!),
               const Text(')'),
             ],
           )
         : Text('Evolves from ${evolution.prevo} (${_evoMethod()})');
+  }
+}
+
+class MoveCard extends StatelessWidget {
+  final Move move;
+
+  const MoveCard(this.move);
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: move.shortDesc!,
+      preferBelow: false,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {},
+          /*onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(builder: (context) => MoveDetails(move)),
+          ),*/
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 96,
+                  child: Text(move.name, overflow: TextOverflow.ellipsis),
+                ),
+                Row(
+                  children: [
+                    TypeBox(
+                      move.type,
+                      pressable: false,
+                      width: 48,
+                      height: 16,
+                      fontSize: 9,
+                    ),
+                    SizedBox(width: 4),
+                    TypeBox(
+                      move.category,
+                      pressable: false,
+                      width: 48,
+                      height: 16,
+                      fontSize: 9,
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Container(
+                        width: 50,
+                        child: (move.basePower > 0)
+                            ? Column(
+                                children: [
+                                  Text('Power', style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+                                  Text('${move.basePower}'),
+                                ],
+                              )
+                            : Container(),
+                      ),
+                      Container(
+                        width: 50,
+                        child: Column(
+                          children: [
+                            Text('Accuracy', style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+                            Text(move.accuracy != null ? '${move.accuracy}%' : '-'),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 50,
+                        child: Column(
+                          children: [
+                            Text('PP', style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+                            Text('${move.pp}'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

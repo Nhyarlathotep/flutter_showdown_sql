@@ -62,3 +62,36 @@ Map<String, dynamic> _$PokemonAbilitiesToJson(PokemonAbilities instance) {
   writeNotNull('S', instance.special);
   return val;
 }
+
+PokemonFormes _$PokemonFormesFromJson(Map<String, dynamic> json) {
+  return PokemonFormes(
+    json['baseForme'] as String?,
+    json['forme'] as String?,
+    json['baseSpecies'] as String?,
+    (json['otherFormes'] as List<dynamic>?)?.map((e) => e as String).toList(),
+    (json['formeOrder'] as List<dynamic>?)?.map((e) => e as String).toList(),
+    json['canGigantamax'] as String?,
+    json['changesFrom'] as String?,
+    json['requiredItem'] as String?,
+  );
+}
+
+Map<String, dynamic> _$PokemonFormesToJson(PokemonFormes instance) {
+  final val = <String, dynamic>{};
+
+  void writeNotNull(String key, dynamic value) {
+    if (value != null) {
+      val[key] = value;
+    }
+  }
+
+  writeNotNull('baseForme', instance.baseForme);
+  writeNotNull('forme', instance.forme);
+  writeNotNull('baseSpecies', instance.baseSpecies);
+  writeNotNull('otherFormes', instance.otherFormes);
+  writeNotNull('formeOrder', instance.formeOrder);
+  writeNotNull('canGigantamax', instance.canGigantamax);
+  writeNotNull('changesFrom', instance.changesFrom);
+  writeNotNull('requiredItem', instance.requiredItem);
+  return val;
+}

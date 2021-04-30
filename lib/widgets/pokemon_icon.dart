@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_db_test/constants.dart';
+import 'package:flutter_db_test/database/db.dart';
 
 class PokemonIcon extends StatefulWidget {
-  final int id;
+  final Pokemon pokemon;
 
-  const PokemonIcon(this.id);
+  const PokemonIcon(this.pokemon);
 
   @override
   _PokemonIconState createState() => _PokemonIconState();
@@ -17,7 +19,16 @@ class _PokemonIconState extends State<PokemonIcon> {
   void initState() {
     super.initState();
 
-    _future = _getIcon('assets/pokemon-icons/${widget.id}.png');
+    _future = _getIcon('assets/pokemon-icons/${_getIconIndex()}.png');
+  }
+
+  int _getIconIndex() {
+    final id = widget.pokemon.nameId;
+
+    if (BattlePokemonIconIndexes.containsKey(id)) {
+      return BattlePokemonIconIndexes[id]!;
+    }
+    return widget.pokemon.id;
   }
 
   Future<Image> _getIcon(String path) async {
@@ -37,7 +48,7 @@ class _PokemonIconState extends State<PokemonIcon> {
         if (snapshot.connectionState == ConnectionState.done) {
           return snapshot.data!;
         } else {
-          return Container();
+          return Container(width: 40, height: 30);
         }
       },
     );

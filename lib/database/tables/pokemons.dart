@@ -11,6 +11,20 @@ class Pokemons extends Table {
 
   TextColumn get nameId => text()();
 
+  IntColumn get hp => integer()();
+
+  IntColumn get atk => integer()();
+
+  IntColumn get def => integer()();
+
+  IntColumn get spa => integer()();
+
+  IntColumn get spd => integer()();
+
+  IntColumn get spe => integer()();
+
+  IntColumn get bst => integer()();
+
   RealColumn get height => real()();
 
   RealColumn get weight => real()();
@@ -21,22 +35,7 @@ class Pokemons extends Table {
 
   TextColumn get evolution => text().map(PokemonEvolutionsConverter())();
 
-
-  /*TextColumn get prevo => text().nullable()();
-
-  TextColumn get evos => text().nullable().map(ListConverter<String>())();
-
-
-  TextColumn get evoType => text().nullable()();
-
-  TextColumn get evoCondition => text().nullable()();
-
-  IntColumn get evoLevel => integer().nullable()();
-
-  TextColumn get evoItem => text().nullable()();
-
-  TextColumn get evoMove => text().nullable()();*/
-
+  TextColumn get formes => text().map(PokemonFormesConverter())();
 
   TextColumn get tier => text()();
 }
@@ -131,14 +130,7 @@ class PokemonAbilities {
 
   const PokemonAbilities(this.first, this.second, this.hidden, this.special);
 
-  List<String> toList() {
-    return [
-      first,
-      if (second != null) second!,
-      if (hidden != null) hidden!,
-      if (special != null) special!,
-    ];
-  }
+  List<String?> get toList => [first, second, hidden, special];
 
   factory PokemonAbilities.fromJson(Map<String, dynamic> json) => _$PokemonAbilitiesFromJson(json);
 
@@ -158,6 +150,75 @@ class PokemonAbilitiesConverter extends TypeConverter<PokemonAbilities, String> 
 
   @override
   String? mapToSql(PokemonAbilities? value) {
+    if (value == null) {
+      return null;
+    }
+    return json.encode(value.toJson());
+  }
+}
+
+@j.JsonSerializable()
+class PokemonFormes {
+  @j.JsonKey(includeIfNull: false)
+  final String? baseForme;
+
+  /// Forme name (e.g. Mega-Y, Gmax)
+  @j.JsonKey(includeIfNull: false)
+  final String? forme;
+
+  /// Base pokemon, always here if forme exists
+  @j.JsonKey(includeIfNull: false)
+  final String? baseSpecies;
+
+  /// Alternative formes (e.g. Mega / Primal)
+  @j.JsonKey(includeIfNull: false)
+  final List<String>? otherFormes;
+
+  //List<String> cosmeticFormes;
+
+  @j.JsonKey(includeIfNull: false)
+  final List<String>? formeOrder;
+
+  @j.JsonKey(includeIfNull: false)
+  final String? canGigantamax;
+
+  /// Gigantamax only: base pokemon
+  @j.JsonKey(includeIfNull: false)
+  final String? changesFrom;
+
+  /// Required item to change into current form
+  @j.JsonKey(includeIfNull: false)
+  final String? requiredItem;
+
+  PokemonFormes(
+    this.baseForme,
+    this.forme,
+    this.baseSpecies,
+    this.otherFormes,
+    this.formeOrder,
+    this.canGigantamax,
+    this.changesFrom,
+    this.requiredItem,
+  );
+
+  factory PokemonFormes.fromJson(Map<String, dynamic> json) => _$PokemonFormesFromJson(json);
+
+  Map<String, dynamic> toJson() => _$PokemonFormesToJson(this);
+}
+
+class PokemonFormesConverter extends TypeConverter<PokemonFormes, String> {
+  const PokemonFormesConverter();
+
+  @override
+  PokemonFormes? mapToDart(String? fromDb) {
+    if (fromDb == null) {
+      return null;
+    }
+    return PokemonFormes.fromJson(json.decode(fromDb));
+  }
+
+  @override
+  String? mapToSql(PokemonFormes? value) {
     if (value == null) {
       return null;
     }

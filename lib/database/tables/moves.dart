@@ -13,7 +13,7 @@ class Moves extends Table {
 
   IntColumn get accuracy => integer().nullable()();
 
-  IntColumn get basePower => integer()();
+  IntColumn get basePower => integer().named('power')();
 
   IntColumn get pp => integer()();
 
