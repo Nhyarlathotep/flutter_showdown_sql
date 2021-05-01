@@ -34,9 +34,9 @@ class _PokemonIconState extends State<PokemonIcon> {
   Future<Image> _getIcon(String path) async {
     try {
       final asset = await rootBundle.load(path);
-      return Image.memory(asset.buffer.asUint8List());
+      return Image.memory(asset.buffer.asUint8List(), width: 40, height: 30);
     } catch (_) {
-      return Image.asset('assets/pokemon-icons/0.png');
+      return Image.asset('assets/pokemon-icons/0.png', width: 40, height: 30);
     }
   }
 

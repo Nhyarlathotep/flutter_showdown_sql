@@ -6,14 +6,15 @@ import 'package:flutter_db_test/widgets/pokemon_icon.dart';
 import '../pokemon_details.dart';
 
 class PokemonListItem extends StatelessWidget {
-  const PokemonListItem(this.pokemon);
+  const PokemonListItem(this.pokemon, this.index);
 
   final Pokemon pokemon;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: index % 2 == 0 ? const Color(0xffebebf7) : Colors.transparent,
       child: InkWell(
         onTap: () => Navigator.pushReplacement(
           context,

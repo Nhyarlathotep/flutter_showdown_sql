@@ -32,7 +32,10 @@ class AbilityDetails extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(ability.desc, style: const TextStyle(fontSize: 16)),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(ability.desc, style: const TextStyle(fontSize: 16)),
+                    ),
                     Text(
                       'Pokemons with ${ability.name}:',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -43,12 +46,7 @@ class AbilityDetails extends StatelessWidget {
             ),
           ],
           rowRenderer: (BuildContext context, int index, Map<String, dynamic> data) {
-            final pokemon = Pokemon.fromData(data, db);
-
-            return Container(
-              child: PokemonListItem(pokemon),
-              color: index % 2 == 0 ? const Color(0xffebebf7) : Colors.transparent,
-            );
+            return PokemonListItem(Pokemon.fromData(data, db), index);
           },
         ),
       ),
