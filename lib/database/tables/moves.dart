@@ -26,6 +26,6 @@ class Moves extends Table {
   TextColumn get desc => text().nullable()();
 }
 
-extension on Move {
+extension MoveExtension on Move {
   int get ppMax => pp * 8 ~/ 5;
 }
